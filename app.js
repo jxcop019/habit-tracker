@@ -2,7 +2,8 @@ import {CFG as C} from './config.js';
 import {GROUPS,RANKS,ACT} from './titles.js';
 import * as K from './calc.js';
 import * as S from './store.js';
-let s=S.load();
+import * as Shop from './shop.js';
+let s=S.load();Shop.seed(s);let view='home';
 const $=q=>document.querySelector(q),v=id=>$('#'+id).value;
 const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const p2=n=>String(n).padStart(2,'0'),today=()=>K.dayKey();
@@ -13,19 +14,26 @@ let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.className='show';cl
 function commit(msg){
  const b=body(),L=lvs(),p0=s.points;
  for(const[k,d]of Object.entries(s.days))if(k<today()&&!d.closed){d.closed=true;d.tdee=b?b.tdee:0}
- K.applyRewards(s);
+ K.applyRewards(s);Shop.expire(s);
  const up=lvs().some((x,i)=>x>L[i]);
  if(!S.save(s))toast('บันทึกลงเครื่องไม่สำเร็จ');
  else if(up)toast('🎉 เลเวลอัป!');
  else if(msg)toast(msg+(s.points!==p0?` (${s.points>p0?'+':''}${s.points-p0})`:''));
  render();
 }
-function render(){
+const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return `${p2(Math.floor(t/60))}:${p2(t%60)}`};
+const badge=()=>{const a=Shop.active(s);return a?`<div class="card wide pop">🎟 กำลังใช้: ${esc(a.name)} · เหลือ <b data-exp="${a.expiresAt}">${fmt(a.expiresAt-Date.now())}</b> นาที</div>`:''};
+const shopHtml=()=>`<section class="card wide"><h2>🎁 ของรางวัล · 💰 ${s.points}</h2>${s.shop.customRewards.map(r=>`<div class="row"><b>${esc(r.name)}</b><small>${r.durationMin?r.durationMin+' นาที':'ไม่จับเวลา'}</small><span>💰${r.price}</span><button data-a="redeem" data-i="${esc(r.id)}">แลก</button><button class="g" data-a="editR" data-i="${esc(r.id)}">แก้</button><button class="g" data-a="delR" data-i="${esc(r.id)}">ลบ</button></div>`).join('')||'<small>ยังไม่มีของรางวัล</small>'}
+<div class="row"><input id="r-n" placeholder="ชื่อตั๋ว" size="14"><input id="r-p" type="number" placeholder="ราคา" style="width:80px"><input id="r-d" type="number" placeholder="นาที (ว่างได้)" style="width:120px"><button data-a="addR">เพิ่ม</button></div></section>
+<section class="card wide"><h2>🎨 Theme</h2>${Object.entries(C.themes).map(([k,t])=>{const own=k==='default'||s.shop.unlockedThemes.includes(k);return `<div class="row"><b>${t.name}</b>${k===s.settings.theme?'<small>ใช้อยู่</small>':own?`<button data-a="theme" data-i="${k}">ใช้</button>`:`<span>💰${t.price}</span><button data-a="buyT" data-i="${k}">ปลดล็อก</button>`}</div>`}).join('')}</section>`;
+const invHtml=()=>`<section class="card wide"><h2>🎒 คลังของฉัน</h2>${s.inventory.map(i=>`<div class="row"><b>${esc(i.name)}</b>${i.status==='ready'?`<button data-a="use" data-i="${esc(i.id)}">กดใช้งาน</button>`:i.status==='active'?`<span>⏳ เหลือ <b data-exp="${i.expiresAt}">${fmt(i.expiresAt-Date.now())}</b></span>`:'<small>ใช้แล้ว</small>'}</div>`).join('')||'<small>ยังไม่มีไอเทม ไปแลกที่ร้านค้าได้เลย</small>'}
+${s.inventory.some(i=>i.status==='used')?'<div class="row"><button class="g" data-a="clearUsed">ล้างรายการที่ใช้แล้ว</button></div>':''}</section>`;
+function render(){document.documentElement.dataset.theme=s.settings.theme||'default';
  const b=body(),d=day(),p=s.profile,L=lvs(),avg=L.reduce((a,c)=>a+c,0)/4;
  const kc=d.meals.reduce((a,m)=>a+m.kcal,0),pct=b?kc/b.tdee*100:0,[cc,ct]=K.calState(pct),bc=b&&K.bmiCat(b.bmi);
  const photo=p.photo.startsWith('data:image/')?`<img class="av" src="${esc(p.photo)}">`:'<div class="av"></div>';
  const opt=(o,sel)=>Object.entries(o).map(([k,t])=>`<option value="${k}" ${k===sel?'selected':''}>${esc(t)}</option>`).join('');
- $('#app').innerHTML=`
+ const home=`
  <section class="card wide"><div class="row">${photo}<div><div class="big">${esc(p.name||'ผู้เล่น')}</div><div>${RANKS[K.rankOf(avg)]} <small>(เฉลี่ย Lv.${avg.toFixed(1)})</small></div><div>💰 ${s.points} Points</div></div></div>
  <div class="grid2">${GROUPS.map((g,i)=>`<div><b>${g.n}</b> Lv.${L[i]} · ${esc(g.t[L[i]-1])}<div class="bar"><i style="width:${K.progress(s.exp[g.k])}%"></i></div><small>${s.exp[g.k]} EXP${L[i]===10?' · MAX':''}</small></div>`).join('')}</div></section>
  <section class="card"><h2>🔥 แคลอรีวันนี้</h2><div class="big">${kc} / ${b?b.tdee:'—'} kcal</div><div class="bar"><i style="width:${Math.min(pct,100)}%;background:${cc}"></i></div><small>${b?`${pct.toFixed(0)}% · ${ct}`:'กรอกโปรไฟล์เพื่อดูเป้าหมาย'}</small>
@@ -44,9 +52,23 @@ function render(){
  <label style="grid-column:1/-1">ระดับกิจกรรม<select id="f-a">${opt(ACT,p.activity)}</select></label></div>
  <div class="row"><button data-a="saveProfile">บันทึกโปรไฟล์</button><label class="g" style="padding:8px 10px;border-radius:10px;cursor:pointer">รูปโปรไฟล์<input id="photo" type="file" accept="image/*" hidden></label></div></section>
  <section class="card wide"><h2>💾 ข้อมูล</h2><div class="row"><button data-a="export">Export JSON</button><label class="g" style="padding:8px 10px;border-radius:10px;cursor:pointer">Import JSON<input id="imp" type="file" accept=".json" hidden></label><button class="g" data-a="reset">Reset ทั้งหมด</button></div><small>ข้อมูลอยู่ในเบราว์เซอร์เครื่องนี้ ควร Export สำรองไว้เป็นระยะ</small></section>`;
+ const nav=`<nav class="card wide row">${[['home','🏠 หลัก'],['shop','🛒 ร้านค้า'],['inv','🎒 คลัง']].map(([k,t])=>`<button class="${view===k?'':'g'}" data-a="go" data-i="${k}">${t}</button>`).join('')}<small>💰 ${s.points}</small></nav>`;
+ $('#app').innerHTML=nav+badge()+(view==='shop'?shopHtml():view==='inv'?invHtml():home);
 }
 const num=(msg,cur,max)=>{const n=parseInt(prompt(msg,cur));return n>=0&&n<=max?n:null};
 const H={
+ go(i){view=i;render()},
+ redeem(i){const e=Shop.redeem(s,i);if(e)return toast(e);commit('แลกแล้ว ไปดูในคลังได้เลย')},
+ use(i){const e=Shop.useTicket(s,i);if(e)return toast(e);commit('เริ่มใช้งานตั๋วแล้ว')},
+ buyT(i){const e=Shop.buyTheme(s,i);if(e)return toast(e);commit('ปลดล็อก Theme แล้ว')},
+ theme(i){const e=Shop.setTheme(s,i);if(e)return toast(e);commit()},
+ clearUsed(){s.inventory=s.inventory.filter(i=>i.status!=='used');commit()},
+ addR(){const n=v('r-n').trim().slice(0,40),p=parseInt(v('r-p')),d=v('r-d')===''?0:parseInt(v('r-d'));
+  if(!n||!(p>=1&&p<=100000)||!(d>=0&&d<=1440))return toast('ใส่ชื่อ ราคา และนาที (ถ้ามี) ให้ถูกต้อง');
+  s.shop.customRewards.push({id:Shop.uid(),name:n,price:p,durationMin:d});commit('เพิ่มของรางวัลแล้ว')},
+ editR(i){const r=s.shop.customRewards.find(x=>x.id===i);if(!r)return;const n=prompt('ชื่อ',r.name)?.trim(),p=n&&parseInt(prompt('ราคา (แต้ม)',r.price)),d=n&&parseInt(prompt('ระยะเวลา (นาที) 0 = ไม่จับเวลา',r.durationMin));
+  if(!n||!(p>=1&&p<=100000)||!(d>=0&&d<=1440))return toast('ข้อมูลไม่ถูกต้อง');Object.assign(r,{name:n.slice(0,40),price:p,durationMin:d});commit('แก้ไขแล้ว')},
+ delR(i){if(confirm('ลบของรางวัลนี้? (ตั๋วที่แลกไปแล้วยังอยู่ในคลัง)')){s.shop.customRewards=s.shop.customRewards.filter(x=>x.id!==i);commit()}},
  saveProfile(){const w=+v('f-w'),h=+v('f-h'),bd=v('f-bd');
   if(!(w>=20&&w<=300&&h>=100&&h<=250&&bd&&K.age(bd)>=5&&K.age(bd)<=120))return toast('กรอกน้ำหนัก/ส่วนสูง/วันเกิดให้ถูกต้อง');
   Object.assign(s.profile,{name:v('f-n').slice(0,30),sex:v('f-s'),birthDate:bd,weightKg:w,heightCm:h,activity:v('f-a'),wakeTarget:v('f-wt')||'07:30'});commit('บันทึกโปรไฟล์แล้ว')},
@@ -71,3 +93,4 @@ document.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;
  if(e.target.id==='imp')f.text().then(t=>{try{const n=S.parseImport(t);if(confirm('แทนที่ข้อมูลในเครื่องด้วยไฟล์นี้?')){s=n;commit('นำเข้าแล้ว')}}catch{toast('ไฟล์ไม่ถูกต้อง')}});
  e.target.value=''});
 commit();
+setInterval(()=>{if(Shop.expire(s)){commit('⏰ ตั๋วหมดเวลาแล้ว');return}document.querySelectorAll('[data-exp]').forEach(e=>e.textContent=fmt(+e.dataset.exp-Date.now()))},1000);

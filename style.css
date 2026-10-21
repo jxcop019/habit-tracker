@@ -13,3 +13,7 @@ button{cursor:pointer;background:var(--a);color:#fff;border:0}button.g{backgroun
 .big{font-size:22px;font-weight:700}.pop{animation:pop .4s}@keyframes pop{50%{transform:scale(1.04)}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,40px);background:#111;color:#fff;padding:10px 16px;border-radius:12px;opacity:0;transition:.3s;pointer-events:none}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+button{color:var(--on,#fff)}button.g{color:var(--t)}nav.row{position:sticky;top:0;z-index:5}
+[data-theme=pastel]{--bg:#fdf2f8;--c:#fff;--t:#4a3f55;--m:#9a8aa6;--a:#e879a9;--b:#f3d9e6}
+[data-theme=gold]{--bg:#0e0c08;--c:#1a160d;--t:#f3e6c4;--m:#a8966a;--a:#d4a537;--b:#3a2f17;--on:#1a1200}
+[data-theme=cyber]{--bg:#0a0a1a;--c:#12122b;--t:#e0f7ff;--m:#7aa5c4;--a:#00e5ff;--b:#2a1a4d;--on:#001018}

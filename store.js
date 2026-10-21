@@ -1,9 +1,15 @@
-const KEY='habit_tracker_v1';
-export const def=()=>({schemaVersion:1,profile:{name:'',photo:'',sex:'male',birthDate:'',weightKg:0,heightCm:0,activity:'light',wakeTarget:'07:30'},exp:{fitness:0,earlyBird:0,nutrition:0,wisdom:0},points:0,days:{},settings:{dayResetHour:3},shop:{customRewards:[],unlockedThemes:[]},inventory:[]});
-const merge=r=>{const d=def();return{...d,...r,profile:{...d.profile,...r.profile},exp:{...d.exp,...r.exp},days:r.days||{}}};
+import {CFG as C} from './config.js';
+const KEY='habit_tracker_v1',STAT=['ready','active','used'];
+export const def=()=>({schemaVersion:1,profile:{name:'',photo:'',sex:'male',birthDate:'',weightKg:0,heightCm:0,activity:'light',wakeTarget:'07:30'},exp:{fitness:0,earlyBird:0,nutrition:0,wisdom:0},points:0,days:{},settings:{dayResetHour:3,theme:'default'},shop:{customRewards:[],unlockedThemes:[],seeded:false},inventory:[]});
+export const merge=r=>{const d=def();return{...d,...r,profile:{...d.profile,...r.profile},exp:{...d.exp,...r.exp},settings:{...d.settings,...r.settings},shop:{...d.shop,...r.shop},days:r.days||{}}};
 export const load=()=>{try{const r=JSON.parse(localStorage.getItem(KEY));return r?merge(r):def()}catch{return def()}};
 export const save=s=>{try{localStorage.setItem(KEY,JSON.stringify(s));return true}catch{return false}};
+const str=(x,n)=>String(x??'').slice(0,n),n0=x=>Math.max(0,+x||0),arr=x=>Array.isArray(x)?x:[];
 export const parseImport=t=>{const r=JSON.parse(t);if(!r||r.schemaVersion!==1||typeof r.days!=='object'||typeof r.exp!=='object')throw new Error('bad');
-const m=merge(r);for(const k in m.exp)m.exp[k]=Math.max(0,+m.exp[k]||0);m.points=Math.max(0,+m.points||0);
-for(const d of Object.values(m.days)){d.meals=Array.isArray(d.meals)?d.meals:[];d.awarded=d.awarded||{};d.push=+d.push||0;d.read=+d.read||0}return m};
-export {merge};
+ const m=merge(r);for(const k in m.exp)m.exp[k]=n0(m.exp[k]);m.points=n0(m.points);
+ for(const d of Object.values(m.days)){d.meals=arr(d.meals);d.awarded=d.awarded||{};d.push=+d.push||0;d.read=+d.read||0}
+ m.inventory=arr(m.inventory).filter(i=>i&&STAT.includes(i.status)).map(i=>({id:str(i.id,20),name:str(i.name,40),durationMin:n0(i.durationMin),status:i.status,redeemedAt:n0(i.redeemedAt),expiresAt:i.status==='active'?n0(i.expiresAt):null,usedAt:i.usedAt?n0(i.usedAt):null}));
+ m.shop.customRewards=arr(m.shop.customRewards).filter(x=>x&&x.name).map(x=>({id:str(x.id,20),name:str(x.name,40),price:Math.max(1,Math.round(n0(x.price))),durationMin:n0(x.durationMin)}));
+ m.shop.unlockedThemes=arr(m.shop.unlockedThemes).filter(k=>C.themes[k]&&k!=='default');
+ if(!C.themes[m.settings.theme]||(m.settings.theme!=='default'&&!m.shop.unlockedThemes.includes(m.settings.theme)))m.settings.theme='default';
+ return m};
