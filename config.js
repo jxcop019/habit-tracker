@@ -8,3 +8,4 @@ meal:{xp:10,max:3,all:20},vit:20,calBonus:30,
 read:{per:15,xp:10,cap:120,b30:20}};
 CFG.themes={default:{name:'ค่าเริ่มต้น',price:0},pastel:{name:'Pastel',price:400},gold:{name:'Dark Gold',price:800},cyber:{name:'Cyberpunk',price:1200}};
 CFG.defaultRewards=[{name:'ตั๋วดูซีรีส์/เล่นเกม 1 ชม.',price:150,durationMin:60},{name:'ตั๋วขนมหวาน/เครื่องดื่มโปรด 1 แก้ว',price:300,durationMin:0},{name:'ตั๋วซื้อของขวัญให้ตัวเอง 1 ชิ้น',price:1500,durationMin:0}];
+CFG.workerUrl='https://expense-ai.phuriphat-zxc84.workers.dev';

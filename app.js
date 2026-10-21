@@ -3,6 +3,7 @@ import {GROUPS,RANKS,ACT} from './titles.js';
 import * as K from './calc.js';
 import * as S from './store.js';
 import * as Shop from './shop.js';
+import * as AI from './ai.js';
 let s=S.load();Shop.seed(s);let view='home';
 const $=q=>document.querySelector(q),v=id=>$('#'+id).value;
 const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -37,8 +38,11 @@ function render(){document.documentElement.dataset.theme=s.settings.theme||'defa
  <section class="card wide"><div class="row">${photo}<div><div class="big">${esc(p.name||'ผู้เล่น')}</div><div>${RANKS[K.rankOf(avg)]} <small>(เฉลี่ย Lv.${avg.toFixed(1)})</small></div><div>💰 ${s.points} Points</div></div></div>
  <div class="grid2">${GROUPS.map((g,i)=>`<div><b>${g.n}</b> Lv.${L[i]} · ${esc(g.t[L[i]-1])}<div class="bar"><i style="width:${K.progress(s.exp[g.k])}%"></i></div><small>${s.exp[g.k]} EXP${L[i]===10?' · MAX':''}</small></div>`).join('')}</div></section>
  <section class="card"><h2>🔥 แคลอรีวันนี้</h2><div class="big">${kc} / ${b?b.tdee:'—'} kcal</div><div class="bar"><i style="width:${Math.min(pct,100)}%;background:${cc}"></i></div><small>${b?`${pct.toFixed(0)}% · ${ct}`:'กรอกโปรไฟล์เพื่อดูเป้าหมาย'}</small>
- ${d.meals.map((m,i)=>`<div class="row">🍽 ${esc(m.menu)} · ${m.kcal} kcal <button class="g" data-a="delMeal" data-i="${i}">ลบ</button></div>`).join('')}
- <div class="row"><input id="m-n" placeholder="เมนู" size="12"><input id="m-k" type="number" placeholder="kcal" style="width:80px"><button data-a="addMeal">เพิ่มมื้อ</button></div>
+ ${d.meals.map((m,i)=>`<div class="row">🍽 ${esc(m.menu)} · ${m.kcal} kcal${m.protein||m.carbs||m.fat?` · P${m.protein} C${m.carbs} F${m.fat}`:''} <button class="g" data-a="delMeal" data-i="${i}">ลบ</button></div>`).join('')}
+ <div class="row"><label class="g" style="padding:8px 10px;border-radius:10px;cursor:pointer">📷 สแกนรูปอาหาร<input id="scan" type="file" accept="image/*" hidden></label></div>
+ <div class="row"><input id="m-n" placeholder="เมนู" size="12"><input id="m-k" type="number" placeholder="kcal" style="width:80px"></div>
+ <div class="row"><input id="m-p" type="number" placeholder="โปรตีน g" style="width:92px"><input id="m-c" type="number" placeholder="คาร์บ g" style="width:92px"><input id="m-f" type="number" placeholder="ไขมัน g" style="width:92px"></div>
+ <div class="row"><button data-a="addMeal">เพิ่มมื้อ</button></div><small id="m-note"></small>
  <small>มื้อที่บันทึก ${d.meals.length}/${C.meal.max}</small>
  <div class="row"><button class="${d.vit?'':'g'}" data-a="vit">${d.vit?'✅':'⬜'} กินวิตามินแล้ว</button></div></section>
  <section class="card"><h2>⏰ ตื่นนอน</h2>${d.wake?`<div class="big pop">${'⭐'.repeat(d.wake.stars)}</div><div>ตื่น ${d.wake.time} · นอน ${d.wake.hours.toFixed(1)} ชม.</div>`:
@@ -80,16 +84,21 @@ const H={
  read15(){day().read+=15;commit('อ่าน +15 นาที')},
  setRead(){const n=num('นาทีที่อ่านวันนี้',day().read,1440);if(n!==null){day().read=n;commit()}},
  addMeal(){const m=v('m-n').trim().slice(0,60),k=+v('m-k');if(!m||!(k>0&&k<=5000))return toast('ใส่ชื่อเมนูและแคลอรี');
-  day().meals.push({menu:m,kcal:Math.round(k),protein:0,carbs:0,fat:0});commit('บันทึกมื้ออาหาร')},
+  const g=id=>Math.min(1000,Math.max(0,Math.round(+v(id)||0)));day().meals.push({menu:m,kcal:Math.round(k),protein:g('m-p'),carbs:g('m-c'),fat:g('m-f')});commit('บันทึกมื้ออาหาร')},
  delMeal(i){day().meals.splice(+i,1);commit()},
  vit(){const d=day();d.vit=!d.vit;commit(d.vit?'กินวิตามินแล้ว':'ยกเลิกวิตามิน')},
  export(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(s,null,1)],{type:'application/json'}));a.download=`habit-${today()}.json`;a.click()},
  reset(){if(confirm('ลบข้อมูลทั้งหมดในเครื่องนี้?')){s=S.def();commit('รีเซ็ตแล้ว')}}
 };
 function photo(f){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,256/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);s.profile.photo=c.toDataURL('image/jpeg',.8);commit()};im.src=r.result};r.readAsDataURL(f)}
+async function scan(f){toast('🔍 กำลังวิเคราะห์รูป...');
+ try{const o=await AI.analyze(f);if(!$('#m-n'))return;const set=(id,x)=>{$('#'+id).value=x};set('m-n',o.menu);set('m-k',o.kcal);set('m-p',o.protein_g);set('m-c',o.carbs_g);set('m-f',o.fat_g);
+  $('#m-note').textContent=o.menu?`ค่าประมาณ (ความมั่นใจ${{low:'ต่ำ',medium:'กลาง',high:'สูง'}[o.confidence]}) ${o.note} · แก้ตัวเลขได้ก่อนกดเพิ่มมื้อ`:'';
+  toast(o.menu?'วิเคราะห์เสร็จแล้ว ตรวจตัวเลขก่อนบันทึกนะ':'ไม่พบอาหารในรูป')}catch(e){toast(e.message)}}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-a]');if(a)H[a.dataset.a]?.(a.dataset.i)});
 document.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;
  if(e.target.id==='photo')photo(f);
+ if(e.target.id==='scan')scan(f);
  if(e.target.id==='imp')f.text().then(t=>{try{const n=S.parseImport(t);if(confirm('แทนที่ข้อมูลในเครื่องด้วยไฟล์นี้?')){s=n;commit('นำเข้าแล้ว')}}catch{toast('ไฟล์ไม่ถูกต้อง')}});
  e.target.value=''});
 commit();
