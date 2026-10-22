@@ -30,6 +30,7 @@ cam:`<path d="M4 8.6A2 2 0 0 1 6 6.6h1.6l1.2-2h6.4l1.2 2H18a2 2 0 0 1 2 2V17a2 2
 pill:`<g transform="rotate(-40 12 12)"><rect x="2.4" y="8" width="19.2" height="8" rx="4" fill="${A}"/><path d="M12 8h5.6a4 4 0 0 1 0 8H12z" fill="${B}"/></g>`,
 cloud:`<path d="M7 18.2a4.4 4.4 0 0 1-.6-8.7 5.8 5.8 0 0 1 11.2 1.2A3.8 3.8 0 0 1 17.2 18.2z" fill="${A}"/><path d="M9 14.6l3-3 3 3M12 11.6v6" fill="none" stroke="${W}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`,
 disk:`<path d="M4 5.6A1.6 1.6 0 0 1 5.6 4h10.2L20 8.2v10.2a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 18.4z" fill="${A}"/><rect x="7.4" y="4" width="7" height="4.6" rx=".8" fill="${W}" fill-opacity=".85"/><rect x="7" y="12.4" width="10" height="7.6" rx="1.2" fill="${B}"/>`,
+hist:`<rect x="4.2" y="3.2" width="14.6" height="17.6" rx="3" fill="${A}"/><path d="M8 8.2h7M8 11.8h7M8 15.4h3.4" stroke="${W}" stroke-opacity=".92" stroke-width="1.6" stroke-linecap="round"/><circle cx="17.6" cy="17.6" r="4.6" fill="${B}"/><circle cx="17.6" cy="17.6" r="3.4" fill="${W}" fill-opacity=".95"/><path d="M17.6 15.6v2.2l1.5.9" fill="none" stroke="${A}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
 check:`<circle cx="12" cy="12" r="9.6" fill="url(#gD)"/><path d="M7.6 12.4l3 3 5.9-6.2" fill="none" stroke="${W}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
 };
 export const I=(n,c='')=>`<svg class="ig${c?' '+c:''}" viewBox="0 0 24 24" aria-hidden="true">${P[n]||''}</svg>`;

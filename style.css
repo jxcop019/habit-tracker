@@ -107,3 +107,28 @@ main{max-width:1180px}
 @media(max-width:980px){.top{grid-template-columns:1fr}}
 @media(max-width:760px){header{display:flex}.hr{margin-left:auto}#bnav .nv .ig{width:24px;height:24px}}
 @media(max-width:760px){.stat{padding:8px 16px}.stat .si .ig{width:34px;height:34px}.cal-g span{height:25px}.cal-g{gap:2px}.top{gap:12px}}
+
+/* ===== รอบที่ 3: รูปโปรไฟล์ header / ประวัติ / สถานะซิงค์ / แสงตามเมาส์ / เอียงการ์ด ===== */
+/* รูปมุมขวาบน: เดิม height:100% ใช้ไม่ได้ใน button แบบ grid รูปเลยถูกตัดเอาแต่ส่วนบน → ล็อกให้เต็มวงกลมแล้วครอปกึ่งกลางเหมือนรูปในโปรไฟล์ */
+.amini{position:relative}.amini img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+/* ประวัติ */
+.seg{display:flex;gap:8px}.seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px}.seg .ig{width:20px;height:20px}
+.hsum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.hsum>div{padding:10px 12px;border-radius:14px;background:var(--c2);border:1px solid var(--b);display:grid;gap:2px;min-width:0}.hsum b{font:700 18px 'Noto Serif Thai',serif}
+.hl{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;align-items:start}
+.hd{gap:8px}.hd-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.hd-k{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.hm{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px dashed var(--b);font-size:14px}.hm span{display:flex;align-items:center;gap:6px;min-width:0}.hm small{text-align:right}
+.hbuy{gap:0}.hb-r{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px dashed var(--b)}.hb-r:first-child{border-top:0}.hb-n{display:grid;min-width:0;flex:1}
+/* สถานะซิงค์ (header) */
+.hr>.syb{display:flex;align-items:center;gap:6px;padding:7px 11px;font-size:12px;font-weight:600;white-space:nowrap}.hr>.syb .ig{width:20px;height:20px}
+.syb .sd{width:8px;height:8px;border-radius:50%;background:#9aa0b8;flex:none}
+.syb.s-ok .sd{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.22)}.syb.s-wait .sd{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.22)}
+.syb.s-busy .sd{background:#3b82f6;animation:sdp 1s ease-in-out infinite}.syb.s-err .sd{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.22)}
+@keyframes sdp{50%{opacity:.3}}
+@media(max-width:560px){.hr>.syb span{display:none}.hr>.syb{padding:8px 10px}.brand b{display:none}.hsum b{font-size:15px}.hl{grid-template-columns:1fr}}
+/* แสงขาวใสตามเมาส์ (ปรับความสว่างที่ rgba(255,255,255,.5) / ขนาดที่ width,height) */
+.fxglow{position:fixed;left:-120px;top:-120px;width:240px;height:240px;border-radius:50%;pointer-events:none;z-index:60;opacity:0;transition:opacity .35s;will-change:transform;
+ background:radial-gradient(circle,rgba(255,255,255,.5) 0,rgba(255,255,255,.16) 38%,transparent 68%),radial-gradient(circle,var(--glow) 0,transparent 62%)}
+.fxglow.on{opacity:1}
+/* การ์ดเอียงตามเมาส์ + แสงสะท้อนบนการ์ด (แทนการขยายใหญ่) */
+.tilt{position:relative;transition:transform .14s ease-out,box-shadow .2s}.tilt:not(:hover){transition:transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .2s}.tilt:hover{--sc:1.012}
+.tilt::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.32),transparent 62%)}.tilt:hover::after{opacity:1}
