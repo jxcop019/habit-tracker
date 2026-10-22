@@ -51,7 +51,7 @@ input:focus,select:focus{outline:2px solid var(--hl);outline-offset:1px}
 @media(max-width:860px){.s4,.s6,.prof{grid-column:span 12}.prof,.two{grid-template-columns:1fr}}
 @media(max-width:760px){.nav-top{display:none}main{padding:14px 12px 96px}#bnav{display:block}#bnav nav{position:fixed;bottom:0;left:0;right:0;z-index:30;display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:var(--c);border-top:1px solid var(--b);backdrop-filter:blur(14px)}
 #bnav .nv{flex:1;flex-direction:column;gap:0;font-size:11px;padding:6px 0;border-radius:12px}.exg{gap:8px}.qt{padding:12px 4px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){*:not(.tilt):not(.fxglow),*::before,*::after{animation:none!important;transition:none!important}}
 .st:empty{display:none}.st{font-size:13px}.st.busy,.st.ok,.st.err{padding:8px 12px;border-radius:12px;border:1px solid var(--b);background:var(--c2)}.st.ok{border-color:#22c55e}.st.err{border-color:#ef4444;color:#ef4444}
 .spin{display:inline-block;width:14px;height:14px;margin-right:8px;border:2px solid var(--b);border-top-color:var(--hl);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}@keyframes spin{to{transform:rotate(360deg)}}
 .pv-top{display:flex;align-items:center;gap:8px}.pv-top .pv-bar{flex:1}.pv-ico{width:34px;height:34px;border-radius:9px}
@@ -126,9 +126,9 @@ main{max-width:1180px}
 @keyframes sdp{50%{opacity:.3}}
 @media(max-width:560px){.hr>.syb span{display:none}.hr>.syb{padding:8px 10px}.brand b{display:none}.hsum b{font-size:15px}.hl{grid-template-columns:1fr}}
 /* แสงขาวใสตามเมาส์ (ปรับความสว่างที่ rgba(255,255,255,.5) / ขนาดที่ width,height) */
-.fxglow{position:fixed;left:-120px;top:-120px;width:240px;height:240px;border-radius:50%;pointer-events:none;z-index:60;opacity:0;transition:opacity .35s;will-change:transform;
- background:radial-gradient(circle,rgba(255,255,255,.5) 0,rgba(255,255,255,.16) 38%,transparent 68%),radial-gradient(circle,var(--glow) 0,transparent 62%)}
+.fxglow{position:fixed;left:-140px;top:-140px;width:280px;height:280px;border-radius:50%;pointer-events:none;z-index:60;opacity:0;transition:opacity .35s;will-change:transform;
+ background:radial-gradient(circle,rgba(255,150,195,.55) 0,rgba(255,120,115,.32) 30%,rgba(255,160,90,.13) 52%,transparent 70%)}
 .fxglow.on{opacity:1}
 /* การ์ดเอียงตามเมาส์ + แสงสะท้อนบนการ์ด (แทนการขยายใหญ่) */
 .tilt{position:relative;transition:transform .14s ease-out,box-shadow .2s}.tilt:not(:hover){transition:transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .2s}.tilt:hover{--sc:1.012}
-.tilt::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.32),transparent 62%)}.tilt:hover::after{opacity:1}
+.tilt::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:var(--lit,0);transition:opacity .25s;background:radial-gradient(200px circle at var(--mx,50%) var(--my,50%),rgba(255,160,185,.18),transparent 62%)}

@@ -151,8 +151,11 @@ function profHtml(b){const p=s.profile,opt=(o,sel)=>Object.entries(o).map(([k,t]
 ${syncHtml()}<section class="card s12"><h2>${I('disk')} ข้อมูล</h2><div class="row"><button data-a="export">Export JSON</button><label class="g" style="padding:9px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--b)">Import JSON<input id="imp" type="file" accept=".json" hidden></label><button class="g" data-a="reset">Reset ทั้งหมด</button></div><small>ข้อมูลอยู่ในเบราว์เซอร์เครื่องนี้ ควร Export สำรองไว้เป็นระยะ</small></section>`}
 const TABS=[['home','home','หลัก'],['shop','shop','ร้านค้า'],['inv','inv','คลัง'],['history','hist','ประวัติ'],['theme','theme','ธีม'],['profile','user','โปรไฟล์']];
 const navH=c=>`<nav class="${c}">${TABS.map(([k,i,t])=>`<button class="nv fx ${view===k?'on':''}" data-a="go" data-i="${k}"><span>${I(i)}</span>${t}</button>`).join('')}</nav>`;
+// ไอคอนบนแท็บเบราว์เซอร์เปลี่ยนตามธีมที่ใช้อยู่ (จำค่าไว้ให้ index.html ใช้ตอนเปิดหน้า ไม่ให้กระพริบเป็นไอคอนเก่า)
+let favNow='';const setFav=u=>{if(!u||u===favNow)return;favNow=u;lss('lq_fav',u);document.querySelectorAll('link[rel="icon"]').forEach(l=>l.remove());const l=document.createElement('link');l.rel='icon';l.href=u;document.head.appendChild(l)};
 function render(){
  const b=body(),d=day(),L=lvs(),avg=L.reduce((a,c)=>a+c,0)/4;
+ setFav((C.themes[s.settings.theme]||C.themes.default).icon);
  document.documentElement.dataset.theme=pv||s.settings.theme||'default';
  $('#hdr').innerHTML=`<header><div class="brand"><img src="${C.themes[pv||s.settings.theme||'default']?.icon||'icon.png'}" alt=""><b>LifeQuest</b></div>${navH('nav-top')}<div class="hr">${sybH()}<span class="coin">${I('coin')} ${s.points}</span><button class="g fx" data-a="snd" title="เสียง">${I(s.settings.sound===false?'snd0':'snd')}</button><button class="amini fx" data-a="go" data-i="profile" title="โปรไฟล์">${s.profile.photo.startsWith('data:image/')?`<img src="${esc(s.profile.photo)}" alt="">`:I('user')}</button></div></header>`;
  $('#bnav').innerHTML=navH('nav-bot');
