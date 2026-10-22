@@ -22,3 +22,5 @@ nutrition:n*C.meal.xp+(n>=C.meal.max?C.meal.all:0)+(d.vit?C.vit:0)+(d.closed&&r>
 wisdom:Math.floor(Math.min(d.read,C.read.cap)/C.read.per)*C.read.xp+(d.read>=30?C.read.b30:0)}};
 // ให้รางวัลด้วย "ผลต่าง" จากที่เคยให้ไปแล้ว → แก้/ลบรายการแล้วแต้มไม่เพี้ยน
 export const applyRewards=s=>{for(const d of Object.values(s.days)){const r=dayRewards(d);for(const q in r){const dl=r[q]-(d.awarded[q]||0);if(dl){s.exp[q]=Math.max(0,s.exp[q]+dl);s.points=Math.max(0,s.points+dl);d.awarded[q]=r[q]}}}};
+export const prevKey=k=>{const[y,m,d]=k.split('-').map(Number),t=new Date(y,m-1,d-1);return `${t.getFullYear()}-${p2(t.getMonth()+1)}-${p2(t.getDate())}`};
+export const streak=(days,today)=>{const on=k=>days[k]&&Object.values(dayRewards(days[k])).some(x=>x>0);let k=today,n=0;if(!on(k))k=prevKey(k);while(on(k)){n++;k=prevKey(k)}return n};
