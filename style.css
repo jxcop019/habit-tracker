@@ -73,3 +73,14 @@ button{position:relative;overflow:hidden}button:not(.g):not(.nv)::after{content:
 .foot{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 6px;color:var(--m)}.foot b{font-family:'Noto Serif Thai',serif;color:var(--t)}
 @media(max-width:980px){.dash,.top{grid-template-columns:1fr}.nut{grid-template-columns:1fr}.ringc{flex-direction:row}}
 @media(max-width:600px){.qg{grid-template-columns:1fr}header{padding:10px 14px}.stat{min-width:0;flex:1;padding:12px}}
+
+/* --- header เดสก์ท็อป: เอากรอบเม็ดยาของเมนูออก ไม่ให้กรอบซ้อนกรอบ (มือถือไม่กระทบ) --- */
+@media(min-width:761px){.nav-top{background:none;border:0;box-shadow:none;padding:0}}
+div.av{display:grid;place-items:center;font-size:42px}
+/* --- ปฏิทินวันต่อเนื่อง --- */
+.cal{min-width:250px;padding:12px 14px;gap:6px}.cal-t{font-size:15px}.cal-h{display:flex;align-items:center;justify-content:space-between;gap:8px}.cal-h button{padding:2px 12px;line-height:1.3}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}.cal-g small{font-size:11px}
+.cal-g span{height:28px;display:grid;place-items:center;border-radius:9px;font-size:12px;color:var(--m)}
+.cal-g .co{background:var(--c2);color:var(--t);border:1px solid var(--hl)}.cal-g .cs{background:var(--grad);color:var(--on);font-weight:600;box-shadow:0 4px 10px -5px var(--glow)}
+.cal-g .td{outline:2px solid var(--hl);outline-offset:1px}.cal-g .fu{opacity:.4}
+.skey{padding:6px 10px;border-radius:10px;background:var(--c2);border:1px solid var(--b);letter-spacing:.08em;font-family:ui-monospace,Menlo,monospace}

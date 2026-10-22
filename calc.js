@@ -24,3 +24,9 @@ wisdom:Math.floor(Math.min(d.read,C.read.cap)/C.read.per)*C.read.xp+(d.read>=30?
 export const applyRewards=s=>{for(const d of Object.values(s.days)){const r=dayRewards(d);for(const q in r){const dl=r[q]-(d.awarded[q]||0);if(dl){s.exp[q]=Math.max(0,s.exp[q]+dl);s.points=Math.max(0,s.points+dl);d.awarded[q]=r[q]}}}};
 export const prevKey=k=>{const[y,m,d]=k.split('-').map(Number),t=new Date(y,m-1,d-1);return `${t.getFullYear()}-${p2(t.getMonth()+1)}-${p2(t.getDate())}`};
 export const streak=(days,today)=>{const on=k=>days[k]&&Object.values(dayRewards(days[k])).some(x=>x>0);let k=today,n=0;if(!on(k))k=prevKey(k);while(on(k)){n++;k=prevKey(k)}return n};
+const isOn=(days,k)=>!!days[k]&&Object.values(dayRewards(days[k])).some(x=>x>0);
+// วันที่ทำต่อเนื่อง (ย้อนจากวันนี้ ถ้าวันนี้ยังไม่ทำ นับจากเมื่อวาน)
+export const streakKeys=(days,today)=>{let k=today;if(!isOn(days,k))k=prevKey(k);const a=[];while(isOn(days,k)){a.push(k);k=prevKey(k)}return a};
+// ช่องปฏิทินของเดือน m (0-11): null = ช่องว่างก่อนวันที่ 1
+export const calMonth=(y,m,days,tk)=>{const c=[];for(let i=0;i<new Date(y,m,1).getDay();i++)c.push(null);
+ for(let d=1,n=new Date(y,m+1,0).getDate();d<=n;d++){const k=`${y}-${p2(m+1)}-${p2(d)}`;c.push({d,k,on:isOn(days,k),today:k===tk,future:k>tk})}return c};

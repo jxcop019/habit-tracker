@@ -13,10 +13,34 @@ const day=()=>s.days[today()]||(s.days[today()]={wake:null,ex:{},meals:[],vit:fa
 const body=()=>{const p=s.profile;if(!p.weightKg||!p.heightCm||!p.birthDate)return null;const b=K.bmr(p.sex,p.weightKg,p.heightCm,K.age(p.birthDate));return{bmi:K.bmi(p.weightKg,p.heightCm),bmr:b,tdee:K.tdee(b,p.activity)}};
 const lvs=()=>GROUPS.map(g=>K.levelOf(s.exp[g.k]));
 let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.className='show';clearTimeout(tt);tt=setTimeout(()=>t.className='',2200)};
-function commit(msg){
+// ===== ซิงค์ข้อมูลข้ามอุปกรณ์ (Cloudflare Worker + KV) — ส่งแค่ค่า hash ของรหัส ไม่ส่งรหัสจริง =====
+const lsg=k=>{try{return localStorage.getItem(k)||''}catch{return''}},lss=(k,x)=>{try{x?localStorage.setItem(k,x):localStorage.removeItem(k)}catch{}};
+let sy={key:lsg('lq_sync_key'),msg:'',show:false,busy:false,t:0},calOff=0,pt;
+const snap=()=>JSON.stringify({...s,updatedAt:0});let lastJ=snap();
+const fk=k=>k.match(/.{1,5}/g).join('-'),tm=()=>new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+const setSy=m=>{sy.msg=m;const e=$('#sy-st');if(e)e.textContent=m};
+const sid=async k=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('lifequest:'+k)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+const newKey=()=>[...crypto.getRandomValues(new Uint8Array(15))].map(x=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x%32]).join('');
+const api=async(m,body)=>{const id=await sid(sy.key),ac=new AbortController(),to=setTimeout(()=>ac.abort(),15000);
+ try{const r=await fetch(`${C.syncUrl}/sync/${id}`,{method:m,headers:body?{'Content-Type':'application/json'}:{},body,signal:ac.signal});return{status:r.status,j:await r.json().catch(()=>({}))}}finally{clearTimeout(to)}};
+const pushSoon=()=>{if(!sy.key||!C.syncUrl)return;clearTimeout(pt);pt=setTimeout(push,1500)};
+async function push(){if(!sy.key||!s.updatedAt)return;
+ try{const r=await api('PUT',JSON.stringify(s));if(r.status===409)return pull();setSy(r.status===200?'☁️ ซิงค์ล่าสุด '+tm():'❌ '+(r.j.error||'ซิงค์ไม่สำเร็จ'))}
+ catch{setSy('❌ ออฟไลน์ จะซิงค์ใหม่เมื่อกลับมาออนไลน์')}}
+async function pull(){if(!sy.key||!C.syncUrl||sy.busy)return;sy.busy=true;sy.t=Date.now();
+ try{const r=await api('GET');
+  if(r.status===404){if(s.updatedAt)await push();return}
+  if(r.status!==200||!r.j.data)throw 0;
+  const n=S.parseImport(JSON.stringify(r.j.data));
+  if(n.updatedAt>s.updatedAt){s=n;Shop.seed(s);commit('☁️ อัปเดตข้อมูลจากอุปกรณ์อื่นแล้ว',true)}
+  else if(s.updatedAt>n.updatedAt)await push();
+  else setSy('✅ ข้อมูลเป็นปัจจุบัน · '+tm())}
+ catch{setSy('❌ ซิงค์ไม่สำเร็จ (ออฟไลน์?) จะลองใหม่เมื่อเปิดแอป')}finally{sy.busy=false}}
+function commit(msg,auto){
  const b=body(),L=lvs(),p0=s.points;
  for(const[k,d]of Object.entries(s.days))if(k<today()&&!d.closed){d.closed=true;d.tdee=b?b.tdee:0}
  K.applyRewards(s);Shop.expire(s);
+ const j=snap();if(!auto&&j!==lastJ){s.updatedAt=Date.now();pushSoon()}lastJ=j;
  const up=lvs().some((x,i)=>x>L[i]);
  if(!S.save(s))toast('บันทึกลงเครื่องไม่สำเร็จ');
  else if(up)toast('🎉 เลเวลอัป!');
@@ -27,13 +51,18 @@ const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return `${p2(Math.floor(t/
 let pv=null,editM=null,scanSt={m:'',c:''},pendingFill=null,scanning=false;
 const ICON=n=>/ซีรีส์|เกม/.test(n)?'🎮':/ขนม|เครื่องดื่ม|กาแฟ|ชา/.test(n)?'🍰':/ของขวัญ/.test(n)?'🎁':'🎟';
 const rar=p=>p<200?['common','สามัญ']:p<500?['rare','หายาก']:p<1000?['epic','เอปิก']:['legend','ตำนาน'];
-const avatar=()=>s.profile.photo.startsWith('data:image/')?`<img class="av" src="${esc(s.profile.photo)}" alt="">`:'<div class="av"></div>';
+const avatar=()=>s.profile.photo.startsWith('data:image/')?`<img class="av" src="${esc(s.profile.photo)}" alt="">`:'<div class="av">👤</div>';
 const badge=()=>{const a=Shop.active(s);return a?`<div class="card s12 pop">🎟 กำลังใช้: <b>${esc(a.name)}</b> · เหลือ <b data-exp="${a.expiresAt}">${fmt(a.expiresAt-Date.now())}</b> นาที</div>`:''};
-const shopHtml=()=>`<section class="s12"><h2>🛒 ร้านค้า <small>💰 ${s.points} แต้ม</small></h2></section><div class="s12 shelf">${s.shop.customRewards.map(r=>{const[k,n]=rar(r.price);return `<article class="ic r-${k} fx tilt"><span class="tag">ITEM · ${n}</span><div class="ic-ed"><button class="g" data-a="editR" data-i="${esc(r.id)}" title="แก้ไข">✎</button><button class="g" data-a="delR" data-i="${esc(r.id)}" title="ลบ">✕</button></div><div class="ic-ico">${ICON(r.name)}</div><h3>${esc(r.name)}</h3><div class="chips"><span>${r.durationMin?'⏱ '+r.durationMin+' นาที':'✨ ใช้ทันที'}</span></div><div class="ic-foot"><b class="price">💰 ${r.price}</b><button class="fx" data-a="redeem" data-i="${esc(r.id)}">แลก</button></div></article>`}).join('')}
+const shopHtml=()=>shopItems()+shopTh();const shopItems=()=>`<section class="s12"><h2>🛒 ร้านค้า <small>💰 ${s.points} แต้ม</small></h2></section><div class="s12 shelf">${s.shop.customRewards.map(r=>{const[k,n]=rar(r.price);return `<article class="ic r-${k} fx tilt"><span class="tag">ITEM · ${n}</span><div class="ic-ed"><button class="g" data-a="editR" data-i="${esc(r.id)}" title="แก้ไข">✎</button><button class="g" data-a="delR" data-i="${esc(r.id)}" title="ลบ">✕</button></div><div class="ic-ico">${ICON(r.name)}</div><h3>${esc(r.name)}</h3><div class="chips"><span>${r.durationMin?'⏱ '+r.durationMin+' นาที':'✨ ใช้ทันที'}</span></div><div class="ic-foot"><b class="price">💰 ${r.price}</b><button class="fx" data-a="redeem" data-i="${esc(r.id)}">แลก</button></div></article>`}).join('')}
 <article class="ic add"><h3>＋ สร้างไอเทมใหม่</h3><input id="r-n" placeholder="ชื่อไอเทม"><input id="r-p" type="number" placeholder="ราคา (แต้ม)"><input id="r-d" type="number" placeholder="นาที (ว่าง = ใช้ทันที)"><button data-a="addR">เพิ่มไอเทม</button></article></div>`;
 const invHtml=()=>`<section class="s12"><h2>🎒 คลังของฉัน</h2></section><div class="s12 shelf">${s.inventory.map(i=>{const[k,n]=rar(i.price||0);return `<article class="ic r-${k} ${i.status} fx tilt"><span class="tag">${i.status==='active'?'ACTIVE':i.status==='used'?'USED':'ITEM · '+n}</span><div class="ic-ico">${ICON(i.name)}</div><h3>${esc(i.name)}</h3><div class="ic-foot">${i.status==='ready'?`<button class="fx" data-a="use" data-i="${esc(i.id)}">กดใช้งาน</button>${i.durationMin?`<small>⏱ ${i.durationMin} นาที</small>`:''}`:i.status==='active'?`<b class="timer">⏳ <span data-exp="${i.expiresAt}">${fmt(i.expiresAt-Date.now())}</span></b>`:'<small>ใช้แล้ว</small>'}</div></article>`}).join('')||'<small>ยังไม่มีไอเทม ไปแลกที่ร้านค้าได้เลย</small>'}</div>
 ${s.inventory.some(i=>i.status==='used')?'<div class="s12 row"><button class="g" data-a="clearUsed">ล้างรายการที่ใช้แล้ว</button></div>':''}`;
-const themeHtml=()=>`<div class="s12 hero"><img src="${C.themes[pv||s.settings.theme].logo}" alt="LifeQuest"></div><section class="s12"><h2>🎨 ธีม <small>กด “ดูตัวอย่าง” เพื่อลองทั้งแอปก่อนซื้อ</small></h2></section><div class="s12 shelf">${Object.entries(C.themes).map(([k,t])=>{const own=k==='default'||s.shop.unlockedThemes.includes(k);return `<article class="ic th r-${k==='default'?'legend':'rare'} fx" data-theme="${k}"><div class="pv"><div class="pv-top"><img class="pv-ico" src="${t.icon}" alt=""><div class="pv-bar"><i></i></div></div><div class="pv-row"><span></span><span></span></div><button tabindex="-1">ปุ่มตัวอย่าง</button></div><h3>${esc(t.name)}</h3><div class="ic-foot">${k===s.settings.theme?'<small>✅ ใช้อยู่</small>':own?`<button data-a="theme" data-i="${k}">ใช้ธีมนี้</button>`:`<b class="price">💰 ${t.price}</b><button data-a="buyT" data-i="${k}">ซื้อ</button>`}<button class="g" data-a="preview" data-i="${k}">👁 ดูตัวอย่าง</button></div></article>`}).join('')}</div>`;
+const pvBox=t=>`<div class="pv"><div class="pv-top"><img class="pv-ico" src="${t.icon}" alt=""><div class="pv-bar"><i></i></div></div><div class="pv-row"><span></span><span></span></div><button tabindex="-1">ปุ่มตัวอย่าง</button></div>`;
+const shopTh=()=>{const l=Object.entries(C.themes).filter(([k])=>k!=='default'&&!s.shop.unlockedThemes.includes(k));return `<section class="s12"><h2>🎨 ธีม <small>กด “ดูตัวอย่าง” เพื่อลองทั้งแอปก่อนซื้อ</small></h2></section><div class="s12 shelf">${l.map(([k,t])=>`<article class="ic th r-rare fx" data-theme="${k}">${pvBox(t)}<h3>${esc(t.name)}</h3><div class="ic-foot"><b class="price">💰 ${t.price}</b><button data-a="buyT" data-i="${k}">ซื้อ</button><button class="g" data-a="preview" data-i="${k}">👁 ดูตัวอย่าง</button></div></article>`).join('')||'<small>ปลดล็อกครบทุกธีมแล้ว 🎉</small>'}</div>`};
+const themeHtml=()=>{const l=Object.entries(C.themes).filter(([k])=>k==='default'||s.shop.unlockedThemes.includes(k));return `<div class="s12 hero"><img src="${C.themes[pv||s.settings.theme].logo}" alt="LifeQuest"></div><section class="s12"><h2>🎨 ธีมของฉัน <small>อยากได้ธีมใหม่ ไปดูตัวอย่างและซื้อที่ร้านค้า</small></h2></section><div class="s12 shelf">${l.map(([k,t])=>`<article class="ic th r-${k==='default'?'legend':'rare'} fx" data-theme="${k}">${pvBox(t)}<h3>${esc(t.name)}</h3><div class="ic-foot">${k===s.settings.theme?'<small>✅ ใช้อยู่</small>':`<button data-a="theme" data-i="${k}">ใช้ธีมนี้</button>`}</div></article>`).join('')}</div>${l.length<Object.keys(C.themes).length?'<div class="s12 row"><button class="g" data-a="go" data-i="shop">🛒 ไปดูธีมอื่นในร้านค้า</button></div>':''}`};
+const calHtml=()=>{const tk=today(),[ty,tm0]=tk.split('-').map(Number),dt=new Date(ty,tm0-1+calOff,1),cells=K.calMonth(dt.getFullYear(),dt.getMonth(),s.days,tk),ks=K.streakKeys(s.days,tk),sk=new Set(ks);
+ return `<div class="card cal"><div class="cal-t"><b>🔥 ${ks.length} วันต่อเนื่อง</b></div><div class="cal-h"><button class="g" data-a="calP" title="เดือนก่อน">‹</button><small>${dt.toLocaleDateString('th-TH',{month:'long',year:'numeric'})}</small><button class="g" data-a="calN" title="เดือนถัดไป" ${calOff>=0?'disabled':''}>›</button></div><div class="cal-g">${['อา','จ','อ','พ','พฤ','ศ','ส'].map(x=>`<small>${x}</small>`).join('')}${cells.map(c=>c?`<span class="${c.on?sk.has(c.k)?'cs':'co':''}${c.today?' td':''}${c.future?' fu':''}">${c.d}</span>`:'<span></span>').join('')}</div></div>`};
+const syncHtml=()=>!C.syncUrl?'':`<section class="card s12"><h2>☁️ ซิงค์ข้อมูลข้ามอุปกรณ์</h2>${sy.key?`<div class="row"><small>รหัสซิงค์</small><code class="skey">${sy.show?fk(sy.key):'•••••-•••••-•••••'}</code><button class="g" data-a="syncShow">${sy.show?'ซ่อน':'แสดง'}</button><button class="g" data-a="syncCopy">คัดลอก</button></div><div class="row"><button data-a="syncNow">ซิงค์ตอนนี้</button><button class="g" data-a="syncOff">ยกเลิกการเชื่อมต่อเครื่องนี้</button></div><small>ใส่รหัสนี้ในอุปกรณ์อื่นเพื่อใช้ข้อมูลชุดเดียวกัน · อย่าแชร์รหัสให้คนอื่น</small>`:`<small>เครื่องแรก: กดสร้างรหัส · เครื่องอื่น: ใส่รหัสที่ได้จากเครื่องแรก</small><div class="row"><button data-a="syncCreate">สร้างรหัสซิงค์ (เครื่องหลัก)</button></div><div class="row"><input id="sy-k" placeholder="ใส่รหัสจากเครื่องอื่น เช่น ABCDE-FGHJK-LMNPQ" autocomplete="off" style="flex:1;min-width:200px"><button data-a="syncJoin">เชื่อมต่อ</button></div>`}<small id="sy-st">${esc(sy.msg)}</small></section>`;
 const mac=(n,e,t)=>`<div><small>${n} ${e}/${t} g</small><div class="bar"><i style="width:${Math.min(100,t?e/t*100:0)}%"></i></div></div>`;
 const SK=['💪','⏰','🍽','📚'];
 const greet=()=>{const h=new Date().getHours();return h<12?'สวัสดีตอนเช้า':h<17?'สวัสดีตอนบ่าย':h<21?'สวัสดีตอนเย็น':'ราตรีสวัสดิ์'};
@@ -44,10 +73,10 @@ function homeHtml(b,d,L,avg){
  const sm=k=>d.meals.reduce((a,m)=>a+(m[k]||0),0),tp=Math.round(1.6*(p.weightKg||0)),tf=Math.round(.25*T/9),tc=Math.max(0,Math.round((T-4*tp-9*tf)/4));
  const tip=!b?'กรอกโปรไฟล์ที่เมนู 👤 เพื่อดูเป้าหมายแคลอรี':pct<70?`ควรกินอีกอย่างน้อย <b>${lo}</b> kcal ให้ถึงช่วงเป้า (70%) และกินได้อีกสูงสุด <b>${hi}</b> kcal จนเต็มเป้า`:pct<=100?`อยู่ในช่วงเป้าแล้ว 👍 กินได้อีกไม่เกิน <b>${hi}</b> kcal`:`เกินเป้า <b>${-hi}</b> kcal ลดมื้อถัดไป หรือขยับร่างกายเพิ่ม`;
  const per=b&&hi>0&&rem>0?`เหลืออีก ${rem} มื้อ ≈ ${Math.round(hi/rem)} kcal/มื้อ`:'',t5=K.taps(d.ex),nx=t5<5?5:t5<10?10:0,bc=b&&K.bmiCat(b.bmi);
- const done=[d.wake,t5>=5,d.meals.length>=C.meal.max,d.vit,d.read>=30].filter(Boolean).length,st=K.streak(s.days,today()),rw=[...s.shop.customRewards].sort((x,y)=>x.price-y.price)[0];
+ const rw=[...s.shop.customRewards].sort((x,y)=>x.price-y.price)[0];
  const wk=d.wake?`<div class="big">${'⭐'.repeat(d.wake.stars)}</div><small>ตื่น ${d.wake.time} · นอน ${d.wake.hours.toFixed(1)} ชม.${d.wake.stars<5?` · ${d.wake.hours<C.wake.need?'นอนไม่ถึง '+C.wake.need+' ชม. ':''}${K.toMin(d.wake.time)>K.toMin(p.wakeTarget)+C.wake.t1?'ตื่นช้ากว่าเป้า':''}`:' · เต็ม 5 ดาว 🎉'}</small>`:`<div class="row"><label><small>นอนเมื่อคืน</small> <input id="bed" type="time" value="23:30" style="width:118px"></label><button data-a="wake">เช็กอินตื่น</button></div><small>เช็กอินได้ ${p2(C.wakeWin[0])}:00–${p2(C.wakeWin[1])}:00</small>`;
  return `<div class="s12 home"><div class="top"><div class="hello"><h1>${greet()}, ${esc(p.name||'ผู้เล่น')} ✦</h1><p>${new Date().toLocaleDateString('th-TH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · วันนี้ก็เก็บเลเวลกันต่อ</p></div>
-<div class="stats"><div class="stat fx"><span class="si">🪙</span><div><b>${s.points}</b><small>แต้มของคุณ</small></div></div><div class="stat fx"><span class="si">🔥</span><div><b>${st}</b><small>วันต่อเนื่อง</small></div></div><div class="stat fx"><span class="si">✅</span><div><b>${done}/5</b><small>ภารกิจวันนี้</small></div></div></div></div>
+<div class="stats"><div class="stat fx"><span class="si">🪙</span><div><b>${s.points}</b><small>แต้มของคุณ</small></div></div>${calHtml()}</div></div>
 <div class="dash"><div class="dcol">
 <section class="card"><h2>🗡 ภารกิจประจำวัน</h2><small>ทำกิจวัตรให้ครบเพื่อรับ EXP และ Points</small><div class="qg">
 ${qc('⏰','ตื่นนอน',`นอน ≥${C.wake.need} ชม. + ตื่นไม่เกินเป้า +${C.wake.t1} นาที = ⭐5`,r.earlyBird,d.wake?d.wake.stars*20:0,wk+`<div class="row"><small>เป้าตื่น</small><input id="wt" type="time" value="${esc(p.wakeTarget)}" style="width:118px"><button class="g" data-a="saveWT">ตั้ง</button></div>`,!!d.wake)}
@@ -82,13 +111,13 @@ function profHtml(b){const p=s.profile,opt=(o,sel)=>Object.entries(o).map(([k,t]
 <label>น้ำหนัก (kg)<input id="f-w" type="number" step="0.1" value="${p.weightKg||''}"></label><label>ส่วนสูง (cm)<input id="f-h" type="number" value="${p.heightCm||''}"></label>
 <label style="grid-column:1/-1">ระดับกิจกรรม<select id="f-a">${opt(ACT,p.activity)}</select></label></div>
 <div class="row"><button data-a="saveProfile">บันทึกโปรไฟล์</button><label class="g" style="padding:9px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--b)">รูปโปรไฟล์<input id="photo" type="file" accept="image/*" hidden></label></div></section>
-<section class="card s12"><h2>💾 ข้อมูล</h2><div class="row"><button data-a="export">Export JSON</button><label class="g" style="padding:9px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--b)">Import JSON<input id="imp" type="file" accept=".json" hidden></label><button class="g" data-a="reset">Reset ทั้งหมด</button></div><small>ข้อมูลอยู่ในเบราว์เซอร์เครื่องนี้ ควร Export สำรองไว้เป็นระยะ</small></section>`}
+${syncHtml()}<section class="card s12"><h2>💾 ข้อมูล</h2><div class="row"><button data-a="export">Export JSON</button><label class="g" style="padding:9px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--b)">Import JSON<input id="imp" type="file" accept=".json" hidden></label><button class="g" data-a="reset">Reset ทั้งหมด</button></div><small>ข้อมูลอยู่ในเบราว์เซอร์เครื่องนี้ ควร Export สำรองไว้เป็นระยะ</small></section>`}
 const TABS=[['home','🏠','หลัก'],['shop','🛒','ร้านค้า'],['inv','🎒','คลัง'],['theme','🎨','ธีม'],['profile','👤','โปรไฟล์']];
 const navH=c=>`<nav class="${c}">${TABS.map(([k,i,t])=>`<button class="nv fx ${view===k?'on':''}" data-a="go" data-i="${k}"><span>${i}</span>${t}</button>`).join('')}</nav>`;
 function render(){
  const b=body(),d=day(),L=lvs(),avg=L.reduce((a,c)=>a+c,0)/4;
  document.documentElement.dataset.theme=pv||s.settings.theme||'default';
- $('#hdr').innerHTML=`<header><div class="brand"><img src="${C.themes[pv||s.settings.theme||'default']?.icon||'icon.png'}" alt=""><b>LifeQuest</b></div>${navH('nav-top')}<div class="hr"><span class="coin">💰 ${s.points}</span><button class="g fx" data-a="snd" title="เสียง">${s.settings.sound===false?'🔇':'🔊'}</button><button class="amini fx" data-a="go" data-i="profile" title="โปรไฟล์">${s.profile.photo.startsWith('data:image/')?`<img src="${esc(s.profile.photo)}" alt="">`:'🙂'}</button></div></header>`;
+ $('#hdr').innerHTML=`<header><div class="brand"><img src="${C.themes[pv||s.settings.theme||'default']?.icon||'icon.png'}" alt=""><b>LifeQuest</b></div>${navH('nav-top')}<div class="hr"><span class="coin">💰 ${s.points}</span><button class="g fx" data-a="snd" title="เสียง">${s.settings.sound===false?'🔇':'🔊'}</button><button class="amini fx" data-a="go" data-i="profile" title="โปรไฟล์">${s.profile.photo.startsWith('data:image/')?`<img src="${esc(s.profile.photo)}" alt="">`:'👤'}</button></div></header>`;
  $('#bnav').innerHTML=navH('nav-bot');
  const own=pv&&(pv==='default'||s.shop.unlockedThemes.includes(pv));
  const pvb=pv?`<div class="card s12 pvbar">👁 ตัวอย่างธีม: <b>${esc(C.themes[pv].name)}</b><span>${own?'':`<button data-a="buyT" data-i="${pv}">ซื้อ 💰${C.themes[pv].price}</button>`}<button class="g" data-a="endPv">ปิดตัวอย่าง</button></span></div>`:'';
@@ -97,7 +126,21 @@ function render(){
 }
 const num=(msg,cur,max)=>{const n=parseInt(prompt(msg,cur));return n>=0&&n<=max?n:null};
 const H={
- preview(i){pv=i;render()},saveWT(){const t=v('wt');if(!/^\d\d:\d\d$/.test(t))return toast('ใส่เวลาให้ถูกต้อง');s.profile.wakeTarget=t;commit('ตั้งเป้าตื่น '+t+' แล้ว')},
+ preview(i){pv=i;render()},
+ calP(){calOff--;render()},calN(){if(calOff<0){calOff++;render()}},
+ syncShow(){sy.show=!sy.show;render()},
+ syncCopy(){navigator.clipboard?.writeText(fk(sy.key)).then(()=>toast('คัดลอกรหัสแล้ว'),()=>toast('คัดลอกไม่ได้ ให้จดรหัสเอง'))},
+ async syncCreate(){if(sy.key||!C.syncUrl)return;sy.key=newKey();lss('lq_sync_key',sy.key);sy.show=true;if(!s.updatedAt){s.updatedAt=Date.now();S.save(s)}setSy('กำลังอัปโหลดข้อมูลขึ้นคลาวด์...');render();await push()},
+ async syncJoin(){const k=v('sy-k').toUpperCase().replace(/[^A-Z0-9]/g,'');if(k.length!==15)return toast('รหัสต้องมี 15 ตัว เช่น ABCDE-FGHJK-LMNPQ');
+  sy.key=k;setSy('กำลังเชื่อมต่อ...');let r;try{r=await api('GET')}catch{r=null}
+  const fail=m=>{sy.key='';setSy(m)};
+  if(!r)return fail('❌ เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ต');if(r.status===404)return fail('❌ ไม่พบรหัสนี้ ตรวจรหัสอีกครั้ง');if(r.status!==200||!r.j.data)return fail('❌ เชื่อมต่อไม่สำเร็จ');
+  let n;try{n=S.parseImport(JSON.stringify(r.j.data))}catch{return fail('❌ ข้อมูลบนคลาวด์อ่านไม่ได้')}
+  if(s.updatedAt&&!confirm('เครื่องนี้มีข้อมูลอยู่แล้ว จะถูกแทนที่ด้วยข้อมูลจากคลาวด์ ดำเนินการต่อ?'))return fail('ยกเลิกแล้ว');
+  lss('lq_sync_key',k);s=n;Shop.seed(s);setSy('✅ เชื่อมต่อแล้ว · '+tm());commit('เชื่อมต่อซิงค์แล้ว ✅',true)},
+ syncNow(){if(!sy.key)return;setSy('กำลังซิงค์...');pull()},
+ syncOff(){if(confirm('ยกเลิกการซิงค์บนเครื่องนี้? (ข้อมูลบนคลาวด์และเครื่องอื่นไม่ถูกลบ)')){sy.key='';sy.show=false;lss('lq_sync_key','');setSy('');render()}},
+saveWT(){const t=v('wt');if(!/^\d\d:\d\d$/.test(t))return toast('ใส่เวลาให้ถูกต้อง');s.profile.wakeTarget=t;commit('ตั้งเป้าตื่น '+t+' แล้ว')},
  cancelEdit(){editM=null;render()},
  editMeal(i){editM=+i;render();const m=day().meals[editM];if(m){setV('m-n',m.menu);setV('m-k',m.kcal);setV('m-p',m.protein||'');setV('m-c',m.carbs||'');setV('m-f',m.fat||'');$('#m-n')?.scrollIntoView?.({block:'center',behavior:'smooth'})}},endPv(){pv=null;render()},snd(){s.settings.sound=s.settings.sound===false;commit()},
  ex(i){const e=C.ex.find(x=>x.k===i),d=day();d.ex[i]=Math.min(2000,(d.ex[i]||0)+e.step);commit(`${e.n} +${e.step}`)},
@@ -128,7 +171,7 @@ const H={
  delMeal(i){editM=null;day().meals.splice(+i,1);commit()},
  vit(){const d=day();d.vit=!d.vit;commit(d.vit?'กินวิตามินแล้ว':'ยกเลิกวิตามิน')},
  export(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(s,null,1)],{type:'application/json'}));a.download=`habit-${today()}.json`;a.click()},
- reset(){if(confirm('ลบข้อมูลทั้งหมดในเครื่องนี้?')){s=S.def();commit('รีเซ็ตแล้ว')}}
+ reset(){if(confirm(sy.key?'ลบข้อมูลทั้งหมด? ซิงค์เปิดอยู่ ข้อมูลบนคลาวด์และทุกเครื่องจะถูกรีเซ็ตด้วย':'ลบข้อมูลทั้งหมดในเครื่องนี้?')){s=S.def();Shop.seed(s);commit('รีเซ็ตแล้ว')}}
 };
 function photo(f){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,256/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);s.profile.photo=c.toDataURL('image/jpeg',.8);commit()};im.src=r.result};r.readAsDataURL(f)}
 const setV=(id,x)=>{const e=$('#'+id);if(e)e.value=x};
@@ -149,5 +192,6 @@ document.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;
  if(e.target.id==='scan')scan(f);
  if(e.target.id==='imp')f.text().then(t=>{try{const n=S.parseImport(t);if(confirm('แทนที่ข้อมูลในเครื่องด้วยไฟล์นี้?')){s=n;commit('นำเข้าแล้ว')}}catch{toast('ไฟล์ไม่ถูกต้อง')}});
  e.target.value=''});
-FX.init(()=>s.settings.sound!==false);commit();
-setInterval(()=>{if(Shop.expire(s)){commit('⏰ ตั๋วหมดเวลาแล้ว');return}document.querySelectorAll('[data-exp]').forEach(e=>e.textContent=fmt(+e.dataset.exp-Date.now()))},1000);
+FX.init(()=>s.settings.sound!==false);commit(null,true);pull();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-sy.t>15000)pull()});addEventListener('online',()=>pull());
+setInterval(()=>{if(Shop.expire(s)){commit('⏰ ตั๋วหมดเวลาแล้ว',true);return}document.querySelectorAll('[data-exp]').forEach(e=>e.textContent=fmt(+e.dataset.exp-Date.now()))},1000);

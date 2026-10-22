@@ -18,3 +18,4 @@ CFG.themePrice=750; // ทุกธีมราคาเท่ากัน
 CFG.themes={default:{name:'Luxury',price:0,logo:'logos/luxury.webp',icon:'logos/luxury-icon.webp'},minimal:{name:'Minimal',price:750,logo:'logos/minimal.webp',icon:'logos/minimal-icon.webp'},
 gold:{name:'Dark Gold',price:750,logo:'logos/gold.webp',icon:'logos/gold-icon.webp'},cyber:{name:'Cyber Punk',price:750,logo:'logos/cyber.webp',icon:'logos/cyber-icon.webp'},pastel:{name:'Cute',price:750,logo:'logos/cute.webp',icon:'logos/cute-icon.webp'}};
 CFG.wake={t1:30,cut:540,need:8,xp:{5:100,3:50,1:15}}; // 5★ = นอน>=8ชม. + ตื่นไม่เกินเป้า+30น. | 3★ = ตื่นก่อน 09:00 | 1★ = หลังจากนั้น
+CFG.syncUrl='https://lifequest-sync.phuriphat-zxc84.workers.dev'; // Worker ซิงค์ข้อมูล (ดู sync-worker/index.js) — ว่าง = ปิดระบบซิงค์
