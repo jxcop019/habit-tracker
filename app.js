@@ -24,7 +24,7 @@ function commit(msg){
  render();
 }
 const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return `${p2(Math.floor(t/60))}:${p2(t%60)}`};
-let pv=null;
+let pv=null,editM=null,scanSt={m:'',c:''},pendingFill=null,scanning=false;
 const ICON=n=>/ซีรีส์|เกม/.test(n)?'🎮':/ขนม|เครื่องดื่ม|กาแฟ|ชา/.test(n)?'🍰':/ของขวัญ/.test(n)?'🎁':'🎟';
 const rar=p=>p<200?['common','สามัญ']:p<500?['rare','หายาก']:p<1000?['epic','เอปิก']:['legend','ตำนาน'];
 const avatar=()=>s.profile.photo.startsWith('data:image/')?`<img class="av" src="${esc(s.profile.photo)}" alt="">`:'<div class="av"></div>';
@@ -33,7 +33,7 @@ const shopHtml=()=>`<section class="s12"><h2>🛒 ร้านค้า <small>�
 <article class="ic add"><h3>＋ สร้างไอเทมใหม่</h3><input id="r-n" placeholder="ชื่อไอเทม"><input id="r-p" type="number" placeholder="ราคา (แต้ม)"><input id="r-d" type="number" placeholder="นาที (ว่าง = ใช้ทันที)"><button data-a="addR">เพิ่มไอเทม</button></article></div>`;
 const invHtml=()=>`<section class="s12"><h2>🎒 คลังของฉัน</h2></section><div class="s12 shelf">${s.inventory.map(i=>{const[k,n]=rar(i.price||0);return `<article class="ic r-${k} ${i.status} fx tilt"><span class="tag">${i.status==='active'?'ACTIVE':i.status==='used'?'USED':'ITEM · '+n}</span><div class="ic-ico">${ICON(i.name)}</div><h3>${esc(i.name)}</h3><div class="ic-foot">${i.status==='ready'?`<button class="fx" data-a="use" data-i="${esc(i.id)}">กดใช้งาน</button>${i.durationMin?`<small>⏱ ${i.durationMin} นาที</small>`:''}`:i.status==='active'?`<b class="timer">⏳ <span data-exp="${i.expiresAt}">${fmt(i.expiresAt-Date.now())}</span></b>`:'<small>ใช้แล้ว</small>'}</div></article>`}).join('')||'<small>ยังไม่มีไอเทม ไปแลกที่ร้านค้าได้เลย</small>'}</div>
 ${s.inventory.some(i=>i.status==='used')?'<div class="s12 row"><button class="g" data-a="clearUsed">ล้างรายการที่ใช้แล้ว</button></div>':''}`;
-const themeHtml=()=>`<section class="s12"><h2>🎨 ธีม <small>กด “ดูตัวอย่าง” เพื่อลองทั้งแอปก่อนซื้อ</small></h2></section><div class="s12 shelf">${Object.entries(C.themes).map(([k,t])=>{const own=k==='default'||s.shop.unlockedThemes.includes(k);return `<article class="ic th r-${k==='default'?'legend':'rare'} fx" data-theme="${k}"><div class="pv"><div class="pv-bar"><i></i></div><div class="pv-row"><span></span><span></span></div><button tabindex="-1">ปุ่มตัวอย่าง</button></div><h3>${esc(t.name)}</h3><div class="ic-foot">${k===s.settings.theme?'<small>✅ ใช้อยู่</small>':own?`<button data-a="theme" data-i="${k}">ใช้ธีมนี้</button>`:`<b class="price">💰 ${t.price}</b><button data-a="buyT" data-i="${k}">ซื้อ</button>`}<button class="g" data-a="preview" data-i="${k}">👁 ดูตัวอย่าง</button></div></article>`}).join('')}</div>`;
+const themeHtml=()=>`<section class="s12"><h2>🎨 ธีม <small>กด “ดูตัวอย่าง” เพื่อลองทั้งแอปก่อนซื้อ</small></h2></section><div class="s12 shelf">${Object.entries(C.themes).map(([k,t])=>{const own=k==='default'||s.shop.unlockedThemes.includes(k);return `<article class="ic th r-${k==='default'?'legend':'rare'} fx" data-theme="${k}"><div class="pv"><div class="pv-top"><img class="pv-ico" src="${t.icon}" alt=""><div class="pv-bar"><i></i></div></div><div class="pv-row"><span></span><span></span></div><button tabindex="-1">ปุ่มตัวอย่าง</button></div><h3>${esc(t.name)}</h3><div class="ic-foot">${k===s.settings.theme?'<small>✅ ใช้อยู่</small>':own?`<button data-a="theme" data-i="${k}">ใช้ธีมนี้</button>`:`<b class="price">💰 ${t.price}</b><button data-a="buyT" data-i="${k}">ซื้อ</button>`}<button class="g" data-a="preview" data-i="${k}">👁 ดูตัวอย่าง</button></div></article>`}).join('')}</div>`;
 const mac=(n,e,t)=>`<div><small>${n} ${e}/${t} g</small><div class="bar"><i style="width:${Math.min(100,t?e/t*100:0)}%"></i></div></div>`;
 function homeHtml(b,d,L,avg){
  const p=s.profile,r=K.dayRewards(d),T=b?b.tdee:0,kc=d.meals.reduce((a,m)=>a+m.kcal,0),pct=b?kc/T*100:0,[cc,ct]=K.calState(pct),hi=T-kc,lo=Math.ceil(T*.7)-kc,rem=C.meal.max-d.meals.length;
@@ -46,12 +46,14 @@ function homeHtml(b,d,L,avg){
 <section class="card s12"><h2>🍽 โภชนาการวันนี้ <span class="xp">+${r.nutrition} EXP</span></h2><div class="two"><div class="col">
 <div class="big">${kc} <small>/ ${b?T:'—'} kcal</small></div><div class="bar"><i style="width:${Math.min(pct,100)}%;background:${cc}"></i></div><small>${b?`${pct.toFixed(0)}% · ${ct}`:''}</small>
 <p class="tip">${tip}${per?`<br><small>${per}</small>`:''}</p>${b?`<div class="mac">${mac('โปรตีน',sm('protein'),tp)}${mac('คาร์บ',sm('carbs'),tc)}${mac('ไขมัน',sm('fat'),tf)}</div><small>เป้าสารอาหารเป็นค่าแนะนำคร่าวๆ · ถ้าสรุปวันแล้วอยู่ 70–100% ของเป้า รับ +${C.calBonus} EXP ตอนข้ามวัน</small>`:''}</div>
-<div class="col">${d.meals.map((m,i)=>`<div class="row">🍽 ${esc(m.menu)} · ${m.kcal} kcal${m.protein||m.carbs||m.fat?` · P${m.protein} C${m.carbs} F${m.fat}`:''} <button class="g" data-a="delMeal" data-i="${i}">ลบ</button></div>`).join('')}
-<div class="row"><label class="g" style="padding:9px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--b)">📷 สแกนรูปอาหาร<input id="scan" type="file" accept="image/*" hidden></label><small>มื้อที่บันทึก ${d.meals.length}/${C.meal.max}</small></div>
+<div class="col">${d.meals.map((m,i)=>`<div class="row">🍽 ${esc(m.menu)} · ${m.kcal} kcal${m.protein||m.carbs||m.fat?` · P${m.protein} C${m.carbs} F${m.fat}`:''} <button class="g" data-a="editMeal" data-i="${i}">แก้</button><button class="g" data-a="delMeal" data-i="${i}">ลบ</button></div>`).join('')}
+<div class="row"><label class="g" style="padding:9px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--b)">📷 สแกนรูปอาหาร<input id="scan" type="file" accept="image/*" hidden></label><small>มื้อที่บันทึก ${d.meals.length}/${C.meal.max}</small></div><div id="scan-st" class="st ${scanSt.c}">${scanSt.m}</div>
 <div class="row"><input id="m-n" placeholder="เมนู" size="12"><input id="m-k" type="number" placeholder="kcal" style="width:80px"></div>
 <div class="row"><input id="m-p" type="number" placeholder="โปรตีน g" style="width:92px"><input id="m-c" type="number" placeholder="คาร์บ g" style="width:92px"><input id="m-f" type="number" placeholder="ไขมัน g" style="width:92px"></div>
-<div class="row"><button data-a="addMeal">เพิ่มมื้อ</button></div><small id="m-note"></small></div></div></section>
-<section class="card s4"><h2>⏰ ตื่นนอน <span class="xp">+${r.earlyBird} EXP</span></h2>${d.wake?`<div class="big pop">${'⭐'.repeat(d.wake.stars)}</div><div>ตื่น ${d.wake.time} · นอน ${d.wake.hours.toFixed(1)} ชม.</div>`:`<small>เป้าหมาย ${esc(p.wakeTarget)} · เช็กอินได้ ${p2(C.wakeWin[0])}:00–${p2(C.wakeWin[1])}:00</small><label>นอนเมื่อคืน <input id="bed" type="time" value="23:30"></label><button data-a="wake">เช็กอินตื่น</button>`}</section>
+<div class="row"><button data-a="addMeal">${editM!==null?'บันทึกการแก้ไข':'เพิ่มมื้อ'}</button>${editM!==null?'<button class="g" data-a="cancelEdit">ยกเลิก</button>':''}</div>${editM!==null?`<small>✏️ กำลังแก้ไขมื้อที่ ${editM+1}</small>`:''}<small id="m-note"></small></div></div></section>
+<section class="card s4"><h2>⏰ ตื่นนอน <span class="xp">+${r.earlyBird} EXP</span></h2>${d.wake?`<div class="big pop">${'⭐'.repeat(d.wake.stars)}</div><div>ตื่น ${d.wake.time} · นอน ${d.wake.hours.toFixed(1)} ชม.</div>${d.wake.stars<5?`<small>${d.wake.hours<C.wake.need?`นอนไม่ถึง ${C.wake.need} ชม. `:''}${K.toMin(d.wake.time)>K.toMin(p.wakeTarget)+C.wake.t1?'ตื่นช้ากว่าเป้าเกิน 30 นาที':''}</small>`:'<small>เต็ม 5 ดาว 🎉</small>'}`:`<label>นอนเมื่อคืน <input id="bed" type="time" value="23:30"></label><button data-a="wake">เช็กอินตื่น</button><small>เช็กอินได้ ${p2(C.wakeWin[0])}:00–${p2(C.wakeWin[1])}:00</small>`}
+<div class="row"><label>เป้าหมายตื่น <input id="wt" type="time" value="${esc(p.wakeTarget)}"></label><button class="g" data-a="saveWT">ตั้งเป้า</button></div>
+<small>⭐5 = นอน ≥${C.wake.need} ชม. + ตื่นไม่เกินเป้า +${C.wake.t1} นาที (+${C.wake.xp[5]}) · ⭐3 = ตื่นก่อน 09:00 (+${C.wake.xp[3]}) · ⭐1 = หลังจากนั้น (+${C.wake.xp[1]})</small></section>
 <section class="card s4"><h2>📚 อ่าน/เรียนรู้ <span class="xp">+${r.wisdom} EXP</span></h2><div class="big">${d.read} <small>นาที</small></div><small>ครบ 30 นาที = +15 EXP (นับสูงสุด 30 นาที/วัน)</small><div class="row"><button data-a="read15">+15 นาที</button><button class="g" data-a="setRead">แก้ยอด</button></div></section>
 <section class="card s4"><h2>💊 วิตามิน <span class="xp">+${d.vit?C.vit:0} EXP</span></h2><div class="big">${d.vit?'✅ กินแล้ว':'⬜ ยังไม่กิน'}</div><small>เช็กอินวันละครั้ง +${C.vit} EXP</small><button class="${d.vit?'g':''}" data-a="vit">${d.vit?'ยกเลิก':'กินวิตามินแล้ว'}</button></section>
 <section class="card s12"><h2>💪 ออกกำลังกาย <span class="xp">+${r.fitness} / ${C.fitCap+C.fitB1+C.fitB2} EXP</span></h2><small>กดปุ่มของแต่ละท่าเมื่อทำครบเซ็ต · รวม ${t5} เซ็ต${nx?` · ครบ ${nx} เซ็ต โบนัส +${nx===5?C.fitB1:C.fitB2}`:' · รับโบนัสครบแล้ว 🎉'}</small>
@@ -69,15 +71,18 @@ const navH=c=>`<nav class="${c}">${TABS.map(([k,i,t])=>`<button class="nv fx ${v
 function render(){
  const b=body(),d=day(),L=lvs(),avg=L.reduce((a,c)=>a+c,0)/4;
  document.documentElement.dataset.theme=pv||s.settings.theme||'default';
- $('#hdr').innerHTML=`<header><div class="brand"><img src="icon.png" alt=""><b>LifeQuest</b></div>${navH('nav-top')}<div class="hr"><span class="coin">💰 ${s.points}</span><button class="g fx" data-a="snd" title="เสียง">${s.settings.sound===false?'🔇':'🔊'}</button></div></header>`;
+ $('#hdr').innerHTML=`<header><div class="brand"><img src="${C.themes[pv||s.settings.theme||'default']?.icon||'icon.png'}" alt=""><b>LifeQuest</b></div>${navH('nav-top')}<div class="hr"><span class="coin">💰 ${s.points}</span><button class="g fx" data-a="snd" title="เสียง">${s.settings.sound===false?'🔇':'🔊'}</button></div></header>`;
  $('#bnav').innerHTML=navH('nav-bot');
  const own=pv&&(pv==='default'||s.shop.unlockedThemes.includes(pv));
  const pvb=pv?`<div class="card s12 pvbar">👁 ตัวอย่างธีม: <b>${esc(C.themes[pv].name)}</b><span>${own?'':`<button data-a="buyT" data-i="${pv}">ซื้อ 💰${C.themes[pv].price}</button>`}<button class="g" data-a="endPv">ปิดตัวอย่าง</button></span></div>`:'';
  $('#app').innerHTML=pvb+badge()+(view==='shop'?shopHtml():view==='inv'?invHtml():view==='theme'?themeHtml():view==='profile'?profHtml(b):homeHtml(b,d,L,avg));
+ if(pendingFill&&$('#m-n')){fillForm(pendingFill);pendingFill=null}
 }
 const num=(msg,cur,max)=>{const n=parseInt(prompt(msg,cur));return n>=0&&n<=max?n:null};
 const H={
- preview(i){pv=i;render()},endPv(){pv=null;render()},snd(){s.settings.sound=s.settings.sound===false;commit()},
+ preview(i){pv=i;render()},saveWT(){const t=v('wt');if(!/^\d\d:\d\d$/.test(t))return toast('ใส่เวลาให้ถูกต้อง');s.profile.wakeTarget=t;commit('ตั้งเป้าตื่น '+t+' แล้ว')},
+ cancelEdit(){editM=null;render()},
+ editMeal(i){editM=+i;render();const m=day().meals[editM];if(m){setV('m-n',m.menu);setV('m-k',m.kcal);setV('m-p',m.protein||'');setV('m-c',m.carbs||'');setV('m-f',m.fat||'');$('#m-n')?.scrollIntoView?.({block:'center',behavior:'smooth'})}},endPv(){pv=null;render()},snd(){s.settings.sound=s.settings.sound===false;commit()},
  ex(i){const e=C.ex.find(x=>x.k===i),d=day();d.ex[i]=Math.min(2000,(d.ex[i]||0)+e.step);commit(`${e.n} +${e.step}`)},
  exUndo(i){const e=C.ex.find(x=>x.k===i),d=day();d.ex[i]=Math.max(0,(d.ex[i]||0)-e.step);commit()},
  go(i){view=i;render()},
@@ -101,17 +106,25 @@ const H={
  read15(){day().read+=15;commit('อ่าน +15 นาที')},
  setRead(){const n=num('นาทีที่อ่านวันนี้',day().read,1440);if(n!==null){day().read=n;commit()}},
  addMeal(){const m=v('m-n').trim().slice(0,60),k=+v('m-k');if(!m||!(k>0&&k<=5000))return toast('ใส่ชื่อเมนูและแคลอรี');
-  const g=id=>Math.min(1000,Math.max(0,Math.round(+v(id)||0)));day().meals.push({menu:m,kcal:Math.round(k),protein:g('m-p'),carbs:g('m-c'),fat:g('m-f')});commit('บันทึกมื้ออาหาร')},
- delMeal(i){day().meals.splice(+i,1);commit()},
+  const g=id=>Math.min(1000,Math.max(0,Math.round(+v(id)||0)));const o={menu:m,kcal:Math.round(k),protein:g('m-p'),carbs:g('m-c'),fat:g('m-f')},ms=day().meals;if(editM!==null&&ms[editM]){ms[editM]=o;editM=null;commit('แก้ไขมื้อแล้ว')}else{ms.push(o);commit('บันทึกมื้ออาหาร')}},
+ delMeal(i){editM=null;day().meals.splice(+i,1);commit()},
  vit(){const d=day();d.vit=!d.vit;commit(d.vit?'กินวิตามินแล้ว':'ยกเลิกวิตามิน')},
  export(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(s,null,1)],{type:'application/json'}));a.download=`habit-${today()}.json`;a.click()},
  reset(){if(confirm('ลบข้อมูลทั้งหมดในเครื่องนี้?')){s=S.def();commit('รีเซ็ตแล้ว')}}
 };
 function photo(f){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,256/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);s.profile.photo=c.toDataURL('image/jpeg',.8);commit()};im.src=r.result};r.readAsDataURL(f)}
-async function scan(f){toast('🔍 กำลังวิเคราะห์รูป...');
- try{const o=await AI.analyze(f);if(!$('#m-n'))return;const set=(id,x)=>{$('#'+id).value=x};set('m-n',o.menu);set('m-k',o.kcal);set('m-p',o.protein_g);set('m-c',o.carbs_g);set('m-f',o.fat_g);
-  $('#m-note').textContent=o.menu?`ค่าประมาณ (ความมั่นใจ${{low:'ต่ำ',medium:'กลาง',high:'สูง'}[o.confidence]}) ${o.note} · แก้ตัวเลขได้ก่อนกดเพิ่มมื้อ`:'';
-  toast(o.menu?'วิเคราะห์เสร็จแล้ว ตรวจตัวเลขก่อนบันทึกนะ':'ไม่พบอาหารในรูป')}catch(e){toast(e.message)}}
+const setV=(id,x)=>{const e=$('#'+id);if(e)e.value=x};
+const setSt=(m,c='')=>{scanSt={m,c};const e=$('#scan-st');if(e){e.className='st '+c;e.innerHTML=m}};
+const fillForm=o=>{setV('m-n',o.menu);setV('m-k',o.kcal);setV('m-p',o.protein_g);setV('m-c',o.carbs_g);setV('m-f',o.fat_g);
+ const n=$('#m-note');if(n)n.textContent=o.menu?`ค่าประมาณ (ความมั่นใจ${{low:'ต่ำ',medium:'กลาง',high:'สูง'}[o.confidence]}) ${o.note} · แก้ตัวเลขได้ก่อนกดบันทึก`:''};
+async function scan(f){
+ if(scanning)return toast('กำลังวิเคราะห์รูปก่อนหน้าอยู่');scanning=true;const t0=Date.now();let step='กำลังเริ่ม...';
+ const show=()=>setSt(`<span class="spin"></span>${step} <small>(${Math.round((Date.now()-t0)/1000)} วินาที)</small>`,'busy'),tk=setInterval(show,500);show();
+ try{const o=await AI.analyze(f,undefined,m=>{step=m;show()});
+  if(!o.menu)setSt('ไม่พบอาหารในรูป ลองถ่ายใหม่ หรือกรอกเอง','err');
+  else{setSt('✅ วิเคราะห์เสร็จแล้ว ตรวจตัวเลขก่อนกดบันทึกนะ','ok');if($('#m-n'))fillForm(o);else pendingFill=o}}
+ catch(e){setSt('❌ '+e.message+' · ลองใหม่ หรือกรอกเอง','err')}
+ finally{clearInterval(tk);scanning=false}}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-a]');if(a)H[a.dataset.a]?.(a.dataset.i)});
 document.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;
  if(e.target.id==='photo')photo(f);
